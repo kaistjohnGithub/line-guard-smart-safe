@@ -1,4 +1,4 @@
-# Smart Safe Guardian React Skeleton
+# Line Guard React Skeleton
 
 This folder now has a structured webapp entry that uses the provided single-file React template as the design starting point.
 

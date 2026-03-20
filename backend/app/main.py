@@ -67,7 +67,7 @@ async def upload_media(file: UploadFile = File(...)):
 @app.get("/")
 def read_root() -> dict:
     return {
-        "message": "Smart Safe Guardian backend",
+        "message": "Line Guard backend",
         "docs":    "/docs",
         "health":  "/health",
         "media":   "/media/",

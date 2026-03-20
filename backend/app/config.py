@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class Settings:
-    app_name = "Smart Safe Guardian Backend"
+    app_name = "Line Guard Backend"
     app_version = "0.1.0"
 
     # Database

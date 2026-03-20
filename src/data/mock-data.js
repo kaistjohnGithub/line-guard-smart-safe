@@ -1,7 +1,7 @@
 window.SSG_DATA = {
   project: {
-    name: "Smart Safe Guardian",
-    subtitle: "DENSO Smart Factory Smart Safety",
+    name: "Line Guard",
+    subtitle: "DENSO Smart Factory AI Safety",
     description:
       "Web application skeleton for monitoring factory cameras, AI safety analysis, SOP compliance, alerts, and project integration status.",
   },

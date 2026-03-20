@@ -1,4 +1,4 @@
--- Smart Safe Guardian — initial schema
+-- Line Guard — initial schema
 
 -- Cameras
 CREATE TABLE IF NOT EXISTS cameras (
