@@ -86,6 +86,38 @@ CREATE TABLE IF NOT EXISTS media_files (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Analysis jobs (video → Qwen pipeline)
+CREATE TABLE IF NOT EXISTS analysis_jobs (
+    id          SERIAL PRIMARY KEY,
+    camera_id   VARCHAR(20) REFERENCES cameras(id),
+    video_path  VARCHAR(500) NOT NULL,
+    status      VARCHAR(20) DEFAULT 'pending',   -- pending / running / done / failed
+    model       VARCHAR(100) DEFAULT 'Qwen/Qwen2.5-VL-3B-Instruct',
+    interval_sec NUMERIC(4,1) DEFAULT 3.0,
+    total_frames INTEGER DEFAULT 0,
+    processed_frames INTEGER DEFAULT 0,
+    error_msg   TEXT,
+    started_at  TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Frame analysis results (one row per frame)
+CREATE TABLE IF NOT EXISTS frame_results (
+    id          SERIAL PRIMARY KEY,
+    job_id      INTEGER REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+    camera_id   VARCHAR(20) REFERENCES cameras(id),
+    event_id    INTEGER REFERENCES events(id),
+    frame_idx   INTEGER NOT NULL,
+    timestamp_sec NUMERIC(8,2),
+    timestamp_str VARCHAR(20),
+    description TEXT,
+    safety_status VARCHAR(20),   -- SAFE / WARNING / DANGER
+    frame_path  VARCHAR(500),    -- path to saved frame image
+    latency_ms  INTEGER,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_camera   ON events(camera_id);
 CREATE INDEX IF NOT EXISTS idx_events_occurred ON events(occurred_at DESC);

@@ -303,6 +303,7 @@ const NAV = [
   { key: 'rules',     label: 'Safety Rules',    icon: '⚑', badge: '3 AI', badgeColor: 'amber', section: null },
   { key: 'prompts',   label: 'Prompt Library',  icon: '✦', section: null },
   { key: 'events',    label: 'Event History',   icon: '⊶', section: 'Reports' },
+  { key: 'analyze',   label: 'AI Video Analyze',icon: '▶', section: null },
   { key: 'analytics', label: 'Analytics',       icon: '⌇', section: null },
   { key: 'settings',  label: 'Admin / Settings',icon: '⚙', section: 'System' },
 ];
@@ -1036,6 +1037,185 @@ function EventHistory({ toast }) {
   );
 }
 
+// ── Page: AI Video Analyze ───────────────────────────────
+const API = 'http://localhost:8000';
+const STATUS_COLOR = { SAFE: 'green', WARNING: 'amber', DANGER: 'red' };
+const STATUS_ICON  = { SAFE: '✓', WARNING: '⚠', DANGER: '✕' };
+
+function AnalyzePage({ toast }) {
+  const [camId, setCamId]     = useState(CAMERAS[0]?.id || '');
+  const [interval, setInt]    = useState(3);
+  const [file, setFile]       = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [job, setJob]         = useState(null);   // { job_id, status, ... }
+  const [polling, setPolling] = useState(false);
+  const [jobs, setJobs]       = useState([]);
+  const fileRef = useRef();
+
+  // Load past jobs
+  useEffect(() => {
+    fetch(`${API}/api/analyze`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setJobs)
+      .catch(() => {});
+  }, [job]);
+
+  // Poll job status
+  useEffect(() => {
+    if (!polling || !job) return;
+    const id = setInterval(() => {
+      fetch(`${API}/api/analyze/${job.job_id}`)
+        .then(r => r.json())
+        .then(data => {
+          setJob(data);
+          if (data.status === 'done' || data.status === 'failed') {
+            setPolling(false);
+            toast(data.status === 'done' ? 'Analysis complete!' : `Failed: ${data.error}`, data.status === 'done' ? 'green' : 'red');
+          }
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(id);
+  }, [polling, job]);
+
+  const handleDrop = e => {
+    e.preventDefault(); setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) setFile(f);
+  };
+
+  const handleSubmit = async () => {
+    if (!file || !camId) { toast('Select camera and video file', 'amber'); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('camera_id', camId);
+    fd.append('interval_sec', interval);
+    try {
+      const res = await fetch(`${API}/api/analyze/video`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setJob(data); setPolling(true);
+      toast('Analysis job started', 'blue');
+    } catch (e) {
+      toast(`Error: ${e.message}`, 'red');
+    }
+  };
+
+  const loadJob = id => {
+    fetch(`${API}/api/analyze/${id}`).then(r => r.json()).then(data => { setJob(data); setPolling(data.status === 'running' || data.status === 'pending'); });
+  };
+
+  const statusColor = s => s === 'done' ? 'green' : s === 'failed' ? 'red' : s === 'running' ? 'blue' : 'gray';
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: 20, background: 'var(--bg)' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 16 }}>AI Video Analyze</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16, alignItems: 'start' }}>
+
+          {/* ── Upload panel ── */}
+          <Panel>
+            <PanelHead title="Upload Video" />
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <FormGroup label="Camera">
+                <select value={camId} onChange={e => setCamId(e.target.value)}
+                  style={{ width: '100%', fontSize: 12, padding: '5px 8px', border: '1.5px solid var(--border2)', borderRadius: 6, background: 'var(--surface2)', color: 'var(--t1)' }}>
+                  {CAMERAS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </FormGroup>
+              <FormGroup label={`Frame interval: ${interval}s`}>
+                <input type="range" min={1} max={10} value={interval} onChange={e => setInt(+e.target.value)}
+                  style={{ width: '100%' }} />
+              </FormGroup>
+
+              {/* Drop zone */}
+              <div
+                onDrop={handleDrop}
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onClick={() => fileRef.current.click()}
+                style={{ border: `2px dashed ${dragOver ? 'var(--blue)' : 'var(--border2)'}`, borderRadius: 8, padding: '20px 12px', textAlign: 'center', cursor: 'pointer', background: dragOver ? 'var(--blue-light)' : 'var(--surface2)', transition: 'all .15s' }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>▶</div>
+                <div style={{ fontSize: 11, color: 'var(--t2)' }}>{file ? file.name : 'Drag & drop video or click to browse'}</div>
+                {file && <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 4 }}>{(file.size / 1e6).toFixed(1)} MB</div>}
+                <input ref={fileRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={e => setFile(e.target.files[0])} />
+              </div>
+
+              <Btn variant="primary" onClick={handleSubmit} disabled={!file || !camId || polling}>
+                {polling ? '⏳ Analyzing...' : '▶ Start Analysis'}
+              </Btn>
+            </div>
+          </Panel>
+
+          {/* ── Progress / Results ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {job && (
+              <Panel>
+                <PanelHead title={`Job #${job.job_id} — ${job.camera_id}`}
+                  right={<Badge color={statusColor(job.status)}>{job.status?.toUpperCase()}</Badge>} />
+                <div style={{ padding: '10px 14px' }}>
+                  {/* Progress bar */}
+                  <div style={{ height: 6, background: 'var(--surface3)', borderRadius: 4, overflow: 'hidden', marginBottom: 10 }}>
+                    <div style={{ height: '100%', width: `${job.progress_pct || 0}%`, background: job.status === 'done' ? 'var(--green)' : job.status === 'failed' ? 'var(--red)' : 'var(--blue)', borderRadius: 4, transition: 'width .4s' }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)', marginBottom: 12 }}>
+                    {job.processed_frames || 0} / {job.total_frames || '?'} frames · {job.progress_pct || 0}%
+                    {job.error && <span style={{ color: 'var(--red)', marginLeft: 8 }}>{job.error}</span>}
+                  </div>
+
+                  {/* Frame results grid */}
+                  {(job.frames || []).length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {job.frames.map((f, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, background: 'var(--surface2)', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                          {f.frame_url && (
+                            <img src={`${API}${f.frame_url}`} alt={f.timestamp_str}
+                              style={{ width: 100, height: 70, objectFit: 'cover', flexShrink: 0 }} />
+                          )}
+                          <div style={{ flex: 1, padding: '8px 10px 8px 0', minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{ fontSize: 10, color: 'var(--t3)', fontWeight: 600 }}>{f.timestamp_str}</span>
+                              <SevBadge sev={f.safety_status === 'DANGER' ? 'critical' : f.safety_status === 'WARNING' ? 'high' : 'low'}>
+                                {STATUS_ICON[f.safety_status]} {f.safety_status}
+                              </SevBadge>
+                              {f.latency_ms && <span style={{ fontSize: 9, color: 'var(--t3)' }}>{f.latency_ms}ms</span>}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                              {f.description}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            )}
+
+            {/* Past jobs */}
+            {jobs.length > 0 && (
+              <Panel>
+                <PanelHead title="Past Jobs" />
+                <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {jobs.map(j => (
+                    <div key={j.job_id} onClick={() => loadJob(j.job_id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer', background: job?.job_id === j.job_id ? 'var(--blue-light)' : 'transparent', transition: 'all .1s' }}>
+                      <Badge color={statusColor(j.status)} style={{ fontSize: 9, minWidth: 52, textAlign: 'center' }}>{j.status}</Badge>
+                      <span style={{ fontSize: 11, color: 'var(--t2)', flex: 1 }}>Job #{j.job_id} · {j.camera_id}</span>
+                      <span style={{ fontSize: 10, color: 'var(--t3)' }}>{j.processed_frames}/{j.total_frames || '?'} frames</span>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page: Analytics ──────────────────────────────────────
 function Analytics() {
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -1165,6 +1345,7 @@ function App() {
     if (page === 'alerts')    return <AlertCenter toast={toast} />;
     if (page === 'rules')     return <SafetyRules toast={toast} />;
     if (page === 'events')    return <EventHistory toast={toast} />;
+    if (page === 'analyze')   return <AnalyzePage toast={toast} />;
     if (page === 'analytics') return <Analytics />;
     if (page === 'settings')  return <Settings />;
     return <Dashboard onOpenCamera={openCamera} />;

@@ -46,6 +46,33 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # ── Qwen Worker (GPU video analysis) ───────────────────
+  qwen-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://ssg:ssg123@db:5432/ssg_db
+      - MEDIA_ROOT=/app/media
+      - QWEN_MODEL=${QWEN_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct}
+      - HF_HUB_CACHE=/app/model/hub
+    volumes:
+      - media_data:/app/media
+      - model_data:/app/model
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu                # start only with: docker compose --profile gpu up
+
   # ── pgAdmin (optional DB GUI) ───────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -63,3 +90,4 @@ services:
 volumes:
   postgres_data:       # PostgreSQL data
   media_data:          # Images & videos uploaded via API
+  model_data:          # Qwen model weights cache

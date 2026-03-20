@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes.health import router as health_router
 from app.api.routes.incidents import router as incidents_router
 from app.api.routes.vlm import router as vlm_router
+from app.api.routes.analyze import router as analyze_router
+from app.api.routes.events import router as events_router
 from app.config import settings
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
@@ -25,6 +27,8 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(incidents_router)
 app.include_router(vlm_router)
+app.include_router(analyze_router)
+app.include_router(events_router)
 
 # ── Media static files ────────────────────────────────────────────────────────
 MEDIA_ROOT = Path(settings.media_root)
