@@ -1,0 +1,1 @@
+# line-guard-smart-safe
