@@ -19,7 +19,7 @@ from .sensor import Sensor, SensorReading, SensorStatus, SensorType
 
 def _utcnow() -> str:
     """Return the current UTC time formatted as an ISO-8601 string."""
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class LineGuard:
