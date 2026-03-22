@@ -1228,9 +1228,9 @@ function CameraDetail({ cam, onBack, toast }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px,1.6fr) minmax(200px,1fr) 250px', gap: 10, flex: 1, overflow: 'hidden', padding: 10, background: 'var(--bg)' }}>
-        {/* COL 1: Video Monitor */}
+        {/* COL 1: Video + Safety Rules / AI Analysis */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
-          <Panel style={{ flex: 1 }}>
+          <Panel>
             <PanelHead title={`Monitor — ${cam.name}`} icon="⬡"
               right={<>
                 {cam.videoSrc && <Badge color="green">🎬 Recorded Video</Badge>}
@@ -1278,10 +1278,7 @@ function CameraDetail({ cam, onBack, toast }) {
               {cam.videoSrc && <span style={{ fontSize: 10, color: 'var(--t3)', fontFamily: "'IBM Plex Mono',monospace", marginLeft: 'auto' }}>{cam.videoSrc.split('/').pop()}</span>}
             </div>
           </Panel>
-        </div>
 
-        {/* COL 2: Safety Rules / Event Timeline / Prompt & VLM — stacked column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
           <Panel>
             <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Badge color="blue">{safetyRules.length} rules</Badge>} />
             <div style={{ padding: '10px 12px' }}>
@@ -1321,28 +1318,10 @@ function CameraDetail({ cam, onBack, toast }) {
               })()}
             </div>
           </Panel>
+        </div>
 
-          <Panel>
-            <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
-            <div style={{ padding: '10px 12px' }}>
-              {tl.map(row => (
-                <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
-                  <SevBadge sev={row.s} />
-                  <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{row.e}</span>
-                </div>
-              ))}
-              <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>✦ VLM Summary</div>
-                <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Operator approached press area without confirming stop. Machine guard opened before motion ceased. Near-miss risk: <span style={{ color: 'var(--red)', fontWeight: 600 }}>CRITICAL</span>.</div>
-              </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
-                <Btn variant="ghost" size="sm">Full History</Btn>
-              </div>
-            </div>
-          </Panel>
-
+        {/* COL 2: Prompt & VLM Control (บน) + Event Timeline (ล่าง) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
           <Panel>
             <PanelHead title="Prompt & VLM Control" icon="✦" right={<Badge color="blue">VLM Ready</Badge>} />
             <div style={{ padding: '10px 12px' }}>
@@ -1366,11 +1345,32 @@ function CameraDetail({ cam, onBack, toast }) {
               </div>
             </div>
           </Panel>
+
+          <Panel>
+            <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
+            <div style={{ padding: '10px 12px' }}>
+              {tl.map(row => (
+                <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
+                  <SevBadge sev={row.s} />
+                  <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{row.e}</span>
+                </div>
+              ))}
+              <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>✦ VLM Summary</div>
+                <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Operator approached press area without confirming stop. Machine guard opened before motion ceased. Near-miss risk: <span style={{ color: 'var(--red)', fontWeight: 600 }}>CRITICAL</span>.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
+                <Btn variant="ghost" size="sm">Full History</Btn>
+              </div>
+            </div>
+          </Panel>
         </div>
 
-        {/* COL 3: SOP */}
+        {/* COL 3: SOP — full height */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
-          <Panel>
+          <Panel style={{ flex: 1 }}>
             <PanelHead title={'SOP' + (sopData ? ' — ' + sopData.code : '')} icon="≡"
               right={sopData ? <Badge color="blue">{sopData.title}</Badge> : <span style={{ fontSize: 10, color: 'var(--t3)' }}>ไม่ได้ผูก SOP</span>} />
             <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
