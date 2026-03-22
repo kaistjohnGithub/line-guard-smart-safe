@@ -1318,10 +1318,7 @@ function CameraDetail({ cam, onBack, toast }) {
               })()}
             </div>
           </Panel>
-        </div>
 
-        {/* COL 2: Prompt & VLM Control (บน) + Event Timeline (ล่าง) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
           <Panel>
             <PanelHead title="Prompt & VLM Control" icon="✦" right={<Badge color="blue">VLM Ready</Badge>} />
             <div style={{ padding: '10px 12px' }}>
@@ -1345,7 +1342,10 @@ function CameraDetail({ cam, onBack, toast }) {
               </div>
             </div>
           </Panel>
+        </div>
 
+        {/* COL 2: Event Timeline */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
           <Panel>
             <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
             <div style={{ padding: '10px 12px' }}>
