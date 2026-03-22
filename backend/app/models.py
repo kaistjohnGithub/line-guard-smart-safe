@@ -21,6 +21,7 @@ class Camera(Base):
     status     = Column(String(20), default="online")
     archived   = Column(Boolean, default=False)
     archived_at = Column(TIMESTAMP(timezone=True))
+    ai_summary = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 

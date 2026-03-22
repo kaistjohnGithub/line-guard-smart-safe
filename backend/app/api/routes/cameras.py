@@ -27,6 +27,7 @@ class CameraBase(BaseModel):
     status: str = "online"
     zone: str | None = None
     location: str | None = None
+    aiSummary: str | None = None
 
 
 class CameraCreate(CameraBase):
@@ -154,6 +155,7 @@ def _format_camera(cam: Camera, db: Session) -> dict:
         "archivedAt": getattr(cam, "archived_at", None),
         "hasHistory": _camera_has_related_records(db, cam.id),
         "last_event_at": latest_event.occurred_at if latest_event else None,
+        "aiSummary": cam.ai_summary or "",
     }
 
 
@@ -206,6 +208,7 @@ def create_camera(body: CameraCreate, db: Session = Depends(get_db)):
         zone=(body.zone or "").strip() or None,
         location=(body.location or "").strip() or None,
         status="warning" if status == "delay" else status,
+        ai_summary=(body.aiSummary or "").strip() or None,
     )
     db.add(db_camera)
     db.commit()
@@ -241,6 +244,7 @@ def update_camera(camera_id: str, body: CameraUpdate, db: Session = Depends(get_
     cam.zone = (body.zone or "").strip() or None
     cam.location = (body.location or "").strip() or None
     cam.status = "warning" if status == "delay" else status
+    cam.ai_summary = (body.aiSummary or "").strip() or None
     db.commit()
     db.refresh(cam)
     return _format_camera(cam, db)

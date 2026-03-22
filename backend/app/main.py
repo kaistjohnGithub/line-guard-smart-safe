@@ -21,6 +21,7 @@ from app.api.routes.import_results import router as import_router
 from app.api.routes.cameras import router as cameras_router
 from app.api.routes.processes import router as processes_router
 from app.api.routes.prompts import router as prompts_router
+from app.api.routes.chat import router as chat_router
 from app.config import settings
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ async def lifespan(_app: FastAPI):
         conn.execute(text("ALTER TABLE prompts ADD COLUMN IF NOT EXISTS last_test_json JSONB"))
         conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS video_offset_seconds FLOAT"))
         conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type_label TEXT"))
+        conn.execute(text("ALTER TABLE cameras ADD COLUMN IF NOT EXISTS ai_summary TEXT"))
         conn.commit()
     yield
 
@@ -54,6 +56,7 @@ app.include_router(import_router)
 app.include_router(cameras_router)
 app.include_router(processes_router)
 app.include_router(prompts_router)
+app.include_router(chat_router)
 
 # ── Media static files ────────────────────────────────────────────────────────
 MEDIA_ROOT = Path(settings.media_root)

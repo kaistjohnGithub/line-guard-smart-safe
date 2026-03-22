@@ -2,6 +2,18 @@ const { useState, useEffect, useRef, useCallback } = React;
 
 const API = 'http://localhost:8000';
 
+function normalizeChatModel(provider, model) {
+  var value = String(model || '').trim();
+  if (provider === 'gemini') {
+    if (!value || value === 'gemini-2.0-flash' || value === 'models/gemini-2.0-flash' || value === 'gemini-2.0-flash-thinking-exp') {
+      return 'gemini-2.5-flash';
+    }
+    return value;
+  }
+  if (provider === 'ollama') return value || 'llama3.1:8b';
+  return value;
+}
+
 // ── Data from mock-data.js ───────────────────────────────
 const { cameras: CAMERAS, prompts: PROMPTS, sops: SOP_DATA,
         sopSteps: SOP_STEPS_SEED, alerts: ALERTS_SEED,
@@ -105,13 +117,14 @@ function Panel({ children, style = {} }) {
   );
 }
 
-function PanelHead({ title, right, icon }) {
+function PanelHead({ title, right, icon, onMouseDown }) {
   return (
     <div style={{
       padding: '8px 14px', background: '#f0f5ff', borderBottom: '1px solid var(--border)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+      cursor: onMouseDown ? 'move' : 'default',
     }}>
-      <span style={{
+      <span onMouseDown={onMouseDown} style={{
         fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
         letterSpacing: '0.08em', color: 'var(--t2)', display: 'flex', alignItems: 'center', gap: 6,
       }}>
@@ -577,6 +590,7 @@ function CameraFleetPage({ onOpenCamera, toast }) {
     station: '',
     videoSrc: '',
     status: 'online',
+    aiSummary: '',
   });
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -707,6 +721,7 @@ function CameraFleetPage({ onOpenCamera, toast }) {
     station: '',
     videoSrc: '',
     status: 'online',
+    aiSummary: '',
   });
 
   const removeStoredVideo = async videoUrl => {
@@ -778,6 +793,7 @@ function CameraFleetPage({ onOpenCamera, toast }) {
           station: newCameraForm.station.trim(),
           videoSrc: uploadedVideoSrc,
           status: newCameraForm.status,
+          aiSummary: newCameraForm.aiSummary || '',
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -826,6 +842,7 @@ function CameraFleetPage({ onOpenCamera, toast }) {
       station: cam.station || '',
       videoSrc: cam.videoSrc || '',
       status: cam.status || 'online',
+      aiSummary: cam.aiSummary || '',
     });
     setOriginalVideoSrc(cam.videoSrc || '');
     setVideoFile(null);
@@ -1157,6 +1174,62 @@ function CameraFleetPage({ onOpenCamera, toast }) {
           </FormGroup>
         </div>
 
+        <FormGroup label="AI Context / Summary" style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: 'var(--t3)', flex: 1 }}>
+                ข้อมูล context สำหรับ Chatbot/AI — อธิบายพื้นที่, ขั้นตอนงาน, ความเสี่ยง
+              </span>
+              <label style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: 'var(--blue-light)', border: '1px solid rgba(29,110,245,.3)',
+                color: 'var(--blue)', borderRadius: 6, padding: '4px 10px',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>
+                ⬆ Upload .txt
+                <input type="file" accept=".txt,.md" style={{ display: 'none' }}
+                  onChange={e => {
+                    var file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function(ev) {
+                      setNewCameraForm(p => ({ ...p, aiSummary: ev.target.result || '' }));
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+            <textarea
+              value={newCameraForm.aiSummary || ''}
+              onChange={e => setNewCameraForm(p => ({ ...p, aiSummary: e.target.value }))}
+              placeholder={'กล้องนี้ติดตั้งที่ Station 1-2 สายการผลิตกระป๋อง\nตรวจสอบการหยิบกระป๋องจากกล่อง WAIT/NG\nความเสี่ยงหลัก: สายพานหนีบมือ, ไม่ใส่ PPE, SOP violation...'}
+              rows={6}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'var(--surface2)', border: '1px solid var(--border2)',
+                borderRadius: 6, padding: '8px 10px', fontSize: 12,
+                fontFamily: "'IBM Plex Mono', monospace", lineHeight: 1.6,
+                resize: 'vertical', outline: 'none', color: 'var(--t1)',
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: 'var(--t3)' }}>
+                {(newCameraForm.aiSummary || '').length > 0
+                  ? (newCameraForm.aiSummary || '').length + ' chars'
+                  : 'ยังไม่มี context'}
+              </span>
+              {(newCameraForm.aiSummary || '').length > 0 && (
+                <button onClick={() => setNewCameraForm(p => ({ ...p, aiSummary: '' }))}
+                  style={{ fontSize: 10, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  ✕ Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </FormGroup>
+
         <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 8, padding: '12px 14px', marginTop: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--blue)', marginBottom: 6 }}>Preview</div>
           <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
@@ -1174,11 +1247,25 @@ function CameraDetail({ cam, onBack, toast }) {
   const [vlmRunning, setVlmRunning] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(true);
   const [sopData, setSopData] = useState(null);
   const [videoError, setVideoError] = useState('');
   const [videoTime, setVideoTime] = useState(0);
   const [frameEvents, setFrameEvents] = useState([]);
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const [chatProvider, setChatProvider] = useState('gemini');
+  const [chatModel, setChatModel] = useState('gemini-2.5-flash');
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatPos, setChatPos] = useState({ x: 1450, y: 185 });
+  const [chatDragging, setChatDragging] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'ChatMe พร้อมช่วยตอบจาก context ของกล้องนี้, SOP, safety rules และเหตุการณ์ล่าสุด' }
+  ]);
   const videoRef = React.useRef(null);
+  const activeRowRef = React.useRef(null);
+  const chatListRef = React.useRef(null);
+  const dragOffsetRef = React.useRef({ x: 0, y: 0 });
 
   var toAbsMedia = function(path) {
     if (!path) return '';
@@ -1198,6 +1285,45 @@ function CameraDetail({ cam, onBack, toast }) {
     setVideoError('');
     setVideoTime(0);
   }, [cam.videoSrc]);
+
+  React.useEffect(function() {
+    setChatMessages([
+      { role: 'assistant', content: 'ChatMe พร้อมช่วยตอบจาก context ของกล้องนี้, SOP, safety rules และเหตุการณ์ล่าสุด' }
+    ]);
+    setChatInput('');
+    setChatLoading(false);
+    setShowChatPanel(true);
+    setChatPos({ x: Math.max(220, window.innerWidth - 380), y: 185 });
+  }, [cam.id]);
+
+  React.useEffect(function() {
+    setChatModel(function(prev) { return normalizeChatModel(chatProvider, prev); });
+  }, [chatProvider]);
+
+  React.useEffect(function() {
+    if (chatListRef.current) chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+  }, [chatMessages, chatLoading, showChatPanel]);
+
+  React.useEffect(function() {
+    if (!chatDragging) return;
+    var onMove = function(e) {
+      var nextX = e.clientX - dragOffsetRef.current.x;
+      var nextY = e.clientY - dragOffsetRef.current.y;
+      var maxX = Math.max(220, window.innerWidth - 340);
+      var maxY = Math.max(80, window.innerHeight - 220);
+      setChatPos({
+        x: Math.min(Math.max(210, nextX), maxX),
+        y: Math.min(Math.max(70, nextY), maxY),
+      });
+    };
+    var onUp = function() { setChatDragging(false); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return function() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [chatDragging]);
 
   React.useEffect(function() {
     setFrameEvents([]);
@@ -1245,6 +1371,12 @@ function CameraDetail({ cam, onBack, toast }) {
   if (sopData) { try { safetyRules = JSON.parse(sopData.safety_rules || '[]'); } catch(e) {} }
   var ppeList = [];
   if (sopData) { try { ppeList = JSON.parse(sopData.equipment || '[]'); } catch(e) {} }
+  var quickChatPrompts = [
+    'สรุปความเสี่ยงหลักของกล้องนี้',
+    'อธิบาย SOP ที่เกี่ยวข้องกับกล้องนี้',
+    'สรุปเหตุการณ์ล่าสุดและสิ่งที่ควรทำต่อ',
+    'มี safety rule อะไรที่ต้องเฝ้าระวังเป็นพิเศษ',
+  ];
 
   const runVLM = () => {
     setVlmRunning(true); toast('VLM กำลังวิเคราะห์วิดีโอ…', '✦');
@@ -1261,12 +1393,75 @@ function CameraDetail({ cam, onBack, toast }) {
     if (videoRef.current) { videoRef.current.currentTime = sec; videoRef.current.play(); }
   };
 
+  var sendChat = function(prefillText) {
+    var nextText = typeof prefillText === 'string' ? prefillText : chatInput;
+    nextText = (nextText || '').trim();
+    if (!nextText || chatLoading) return;
+
+    var nextHistory = chatMessages.slice(-10).map(function(msg) {
+      return { role: msg.role, content: msg.content };
+    });
+    var optimisticUser = { role: 'user', content: nextText };
+    setChatMessages(function(prev) { return prev.concat([optimisticUser]); });
+    setChatInput('');
+    setChatLoading(true);
+    var resolvedModel = normalizeChatModel(chatProvider, chatModel);
+    if (resolvedModel !== chatModel) setChatModel(resolvedModel);
+
+    fetch(API + '/api/chat/camera', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cameraId: cam.id,
+        message: nextText,
+        provider: chatProvider,
+        model: resolvedModel,
+        history: nextHistory,
+      }),
+    })
+      .then(function(r) {
+        return r.json().then(function(data) {
+          if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+          return data;
+        });
+      })
+      .then(function(data) {
+        setChatMessages(function(prev) {
+          return prev.concat([{
+            role: 'assistant',
+            content: data.answer || 'No answer returned.',
+            meta: (data.provider || '') + ' · ' + (data.model || ''),
+          }]);
+        });
+      })
+      .catch(function(err) {
+        setChatMessages(function(prev) {
+          return prev.concat([{
+            role: 'assistant',
+            content: 'ChatMe ติดต่อ AI ไม่สำเร็จ: ' + err.message,
+            error: true,
+          }]);
+        });
+        toast('ChatMe: ' + err.message, '⚠', 'var(--red)');
+      })
+      .finally(function() {
+        setChatLoading(false);
+      });
+  };
+
   // index ของ frame ที่ใกล้ currentTime มากที่สุด (ไม่เกิน)
   var activeFrameIdx = -1;
   for (var fi = 0; fi < frameEvents.length; fi++) {
     if ((frameEvents[fi].timestamp_sec || 0) <= videoTime) activeFrameIdx = fi;
     else break;
   }
+
+  // auto-scroll timeline to active event when video plays
+  React.useEffect(function() {
+    if (activeRowRef.current) {
+      activeRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [activeFrameIdx]);
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1279,6 +1474,7 @@ function CameraDetail({ cam, onBack, toast }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <StatusPill status={cam.status} />
           <Badge color="blue">AI Active</Badge>
+          <Btn variant={showChatPanel ? 'primary' : 'teal'} size="sm" onClick={() => setShowChatPanel(function(v) { return !v; })}>💬 ChatMe</Btn>
           <Btn variant="ghost" size="sm" onClick={() => setShowPromptModal(true)}>✦ Prompt & VLM</Btn>
           <Btn variant="danger" size="sm" onClick={() => toast('Alert sent!', '⚠', 'var(--red)')}>⚠ Send Alert</Btn>
         </div>
@@ -1383,65 +1579,183 @@ function CameraDetail({ cam, onBack, toast }) {
         {/* COL 2: Event Timeline — full height */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
           <Panel style={{ flex: 1, overflow: 'hidden' }}>
-            <PanelHead title="Event Timeline" icon="⊶"
-              right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>{frameEvents.length > 0 ? frameEvents.length + ' events' : 'no events'}</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
-            <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
-              {frameEvents.length === 0 && (
-                <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>ยังไม่มี event — รัน AI Video Analyze เพื่อสร้าง events</div>
-              )}
-              {frameEvents.map(function(fr, i) {
-                var isActive = i === activeFrameIdx;
-                var sevKey = (fr.safety_status || 'low').toLowerCase();
-                var sevMap = { safe: 'low', warning: 'medium', unsafe: 'high', critical: 'critical', low: 'low', medium: 'medium', high: 'high' };
-                var sev = sevMap[sevKey] || 'low';
-                return (
-                  <div key={fr.id || i}
-                    onClick={function() { seekTo(fr.timestamp_sec || 0); }}
-                    title="คลิกเพื่อ seek วิดีโอไปจุดนี้"
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 7,
-                      padding: '6px 8px', borderRadius: 6, marginBottom: 2,
-                      cursor: cam.videoSrc ? 'pointer' : 'default',
-                      background: isActive ? 'rgba(29,110,245,.1)' : 'transparent',
-                      border: isActive ? '1px solid rgba(29,110,245,.3)' : '1px solid transparent',
-                      transition: 'background .15s',
-                    }}>
-                    <span style={{ fontSize: 10, color: isActive ? 'var(--blue)' : 'var(--t3)', minWidth: 40, fontFamily: "'IBM Plex Mono',monospace", fontWeight: isActive ? 700 : 400, flexShrink: 0 }}>
-                      {fmtSec(fr.timestamp_sec)}
-                    </span>
-                    <SevBadge sev={sev} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {fr.event_type_label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: isActive ? 'var(--blue)' : 'var(--t3)', marginBottom: 2 }}>{fr.event_type_label}</div>}
-                      <span style={{ fontSize: 11, color: isActive ? 'var(--t1)' : 'var(--t2)', lineHeight: 1.45 }}>
-                        {(fr.description || fr.safety_status || '—').slice(0, 90)}
+            {(function() {
+              // events ที่จะแสดง: ถ้า showAllEvents → ทั้งหมด, ไม่งั้น → เฉพาะที่ผ่านแล้วตามเวลาวิดีโอ
+              var visibleEvents = showAllEvents
+                ? frameEvents
+                : frameEvents.filter(function(e) { return (e.timestamp_sec || 0) <= videoTime; });
+              // active index ใน visibleEvents
+              var visActiveIdx = -1;
+              for (var vi = 0; vi < visibleEvents.length; vi++) {
+                if ((visibleEvents[vi].timestamp_sec || 0) <= videoTime) visActiveIdx = vi;
+                else break;
+              }
+              return (
+                <>
+                  <PanelHead title="Event Timeline" icon="⊶"
+                    right={<>
+                      <span style={{ fontSize: 10, color: 'var(--t3)' }}>
+                        {showAllEvents ? frameEvents.length + ' events' : visibleEvents.length + ' / ' + frameEvents.length}
                       </span>
+                      <Btn variant={showAllEvents ? 'primary' : 'ghost'} size="sm"
+                        onClick={function() { setShowAllEvents(function(v) { return !v; }); }}>
+                        {showAllEvents ? '⊟ Playing' : '⊞ Show All'}
+                      </Btn>
+                      <Btn variant="ghost" size="sm" onClick={function() {
+                        var rows = frameEvents.map(function(e) {
+                          return {
+                            'Timestamp': fmtSec(e.timestamp_sec),
+                            'Seconds': e.timestamp_sec || 0,
+                            'Severity': (e.safety_status || '').toUpperCase(),
+                            'Event Type': e.event_type_label || '',
+                            'Description': e.description || '',
+                            'Source': e.source || '',
+                            'Camera': cam.id,
+                            'Station': cam.station || '',
+                          };
+                        });
+                        var ws = XLSX.utils.json_to_sheet(rows);
+                        var wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, 'Events');
+                        XLSX.writeFile(wb, cam.id + '_events.xlsx');
+                        toast('Export Excel สำเร็จ!', '⬇');
+                      }}>⬇ Export Excel</Btn>
+                    </>} />
+                  <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
+                    {frameEvents.length === 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>ยังไม่มี event — รัน AI Video Analyze เพื่อสร้าง events</div>
+                    )}
+                    {frameEvents.length > 0 && visibleEvents.length === 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>▶ Play วิดีโอเพื่อดู events ตามเวลา</div>
+                    )}
+                    {visibleEvents.map(function(fr, i) {
+                      var isActive = i === visActiveIdx;
+                      var sevKey = (fr.safety_status || 'low').toLowerCase();
+                      var sevMap = { safe: 'low', warning: 'medium', unsafe: 'high', critical: 'critical', low: 'low', medium: 'medium', high: 'high' };
+                      var sev = sevMap[sevKey] || 'low';
+                      return (
+                        <div key={fr.id || i}
+                          ref={isActive ? activeRowRef : null}
+                          onClick={function() { seekTo(fr.timestamp_sec || 0); }}
+                          title="คลิกเพื่อ seek วิดีโอไปจุดนี้"
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 7,
+                            padding: '6px 8px', borderRadius: 6, marginBottom: 2,
+                            cursor: cam.videoSrc ? 'pointer' : 'default',
+                            background: isActive ? 'rgba(29,110,245,.1)' : 'transparent',
+                            border: isActive ? '1px solid rgba(29,110,245,.3)' : '1px solid transparent',
+                            transition: 'background .15s',
+                          }}>
+                          <span style={{ fontSize: 10, color: isActive ? 'var(--blue)' : 'var(--t3)', minWidth: 40, fontFamily: "'IBM Plex Mono',monospace", fontWeight: isActive ? 700 : 400, flexShrink: 0 }}>
+                            {fmtSec(fr.timestamp_sec)}
+                          </span>
+                          <SevBadge sev={sev} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {fr.event_type_label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: isActive ? 'var(--blue)' : 'var(--t3)', marginBottom: 2 }}>{fr.event_type_label}</div>}
+                            <span style={{ fontSize: 11, color: isActive ? 'var(--t1)' : 'var(--t2)', lineHeight: 1.45 }}>
+                              {(fr.description || fr.safety_status || '—').slice(0, 90)}
+                            </span>
+                          </div>
+                          {isActive && <span style={{ fontSize: 9, color: 'var(--blue)', fontWeight: 700, flexShrink: 0 }}>▶</span>}
+                        </div>
+                      );
+                    })}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
+                      <Btn variant="ghost" size="sm">Full History</Btn>
                     </div>
-                    {isActive && <span style={{ fontSize: 9, color: 'var(--blue)', fontWeight: 700, flexShrink: 0 }}>▶</span>}
                   </div>
-                );
-              })}
-              {/* active frame description box */}
-              {activeFrameIdx >= 0 && frameEvents[activeFrameIdx] && (
-                <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 10 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>
-                    ✦ Frame {fmtSec(frameEvents[activeFrameIdx].timestamp_sec)}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>
-                    {frameEvents[activeFrameIdx].description || '—'}
-                  </div>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
-                <Btn variant="ghost" size="sm">Full History</Btn>
-              </div>
-            </div>
+                </>
+              );
+            })()}
           </Panel>
         </div>
 
         {/* COL 3: SOP — full height */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
-          <Panel style={{ flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+          {showChatPanel && (
+            <Panel style={{ position: 'fixed', left: chatPos.x, top: chatPos.y, width: 330, height: 440, zIndex: 1200, boxShadow: '0 18px 42px rgba(15,23,42,.22)' }}>
+              <PanelHead title="ChatMe" icon="💬"
+                onMouseDown={function(e) {
+                  dragOffsetRef.current = { x: e.clientX - chatPos.x, y: e.clientY - chatPos.y };
+                  setChatDragging(true);
+                }}
+                right={<div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <select value={chatProvider} onChange={function(e) { setChatProvider(e.target.value); }}
+                    style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 5, padding: '4px 8px', fontSize: 10, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit' }}>
+                    <option value="gemini">Gemini</option>
+                    <option value="ollama">Ollama</option>
+                  </select>
+                  <input value={chatModel} onChange={function(e) { setChatModel(e.target.value); }}
+                    style={{ width: 120, background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 5, padding: '4px 8px', fontSize: 10, color: 'var(--t1)', outline: 'none', fontFamily: "'IBM Plex Mono',monospace" }} />
+                  <button onClick={function() { setShowChatPanel(false); }}
+                    style={{ width: 22, height: 22, borderRadius: 5, border: '1px solid var(--border2)', background: '#fff', cursor: 'pointer', color: 'var(--t3)', fontSize: 12, padding: 0 }}>
+                    ×
+                  </button>
+                </div>} />
+              <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', background: 'rgba(29,110,245,.04)' }}>
+                <div style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.5 }}>
+                  ตอบจาก camera context, SOP, safety rules และ recent events ของ <b style={{ color: 'var(--blue)' }}>{cam.id}</b>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+                  {quickChatPrompts.map(function(item) {
+                    return (
+                      <button key={item} onClick={function() { sendChat(item); }}
+                        style={{ background: '#fff', border: '1px solid rgba(29,110,245,.22)', borderRadius: 20, padding: '4px 9px', fontSize: 10, color: 'var(--blue)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div ref={chatListRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {chatMessages.map(function(msg, idx) {
+                  var isUser = msg.role === 'user';
+                  return (
+                    <div key={idx} style={{ alignSelf: isUser ? 'flex-end' : 'stretch', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{
+                        alignSelf: isUser ? 'flex-end' : 'flex-start',
+                        maxWidth: '92%',
+                        background: isUser ? 'var(--blue)' : (msg.error ? 'var(--red-light)' : 'var(--surface2)'),
+                        color: isUser ? '#fff' : (msg.error ? 'var(--red)' : 'var(--t1)'),
+                        border: isUser ? '1px solid var(--blue)' : ('1px solid ' + (msg.error ? 'rgba(229,62,62,.2)' : 'var(--border2)')),
+                        borderRadius: 10,
+                        padding: '8px 10px',
+                        fontSize: 11,
+                        lineHeight: 1.55,
+                        whiteSpace: 'pre-wrap',
+                      }}>
+                        {msg.content}
+                      </div>
+                      {!isUser && msg.meta && <span style={{ fontSize: 9, color: 'var(--t3)', marginLeft: 4 }}>{msg.meta}</span>}
+                    </div>
+                  );
+                })}
+                {chatLoading && (
+                  <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic' }}>ChatMe กำลังคิด…</div>
+                )}
+              </div>
+              <div style={{ padding: 10, borderTop: '1px solid var(--border)', background: '#f8faff' }}>
+                <textarea value={chatInput} onChange={function(e) { setChatInput(e.target.value); }}
+                  onKeyDown={function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendChat();
+                    }
+                  }}
+                  placeholder="ถามเกี่ยวกับกล้องนี้, SOP, ความเสี่ยง หรือเหตุการณ์ล่าสุด…"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', background: '#fff', border: '1px solid var(--border2)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--t1)', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                  <span style={{ fontSize: 10, color: 'var(--t3)' }}>{chatProvider === 'ollama' ? 'Local model' : 'Cloud model'} · {chatModel}</span>
+                  <Btn variant="primary" size="sm" onClick={function() { sendChat(); }} disabled={chatLoading || !chatInput.trim()}>
+                    {chatLoading ? '⟳ Sending…' : 'Send'}
+                  </Btn>
+                </div>
+              </div>
+            </Panel>
+          )}
+          <Panel style={{ flex: 1, minHeight: 0 }}>
             <PanelHead title={'SOP' + (sopData ? ' — ' + sopData.code : '')} icon="≡"
               right={sopData ? <Badge color="blue">{sopData.title}</Badge> : <span style={{ fontSize: 10, color: 'var(--t3)' }}>ไม่ได้ผูก SOP</span>} />
             <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>

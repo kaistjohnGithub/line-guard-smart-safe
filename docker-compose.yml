@@ -25,6 +25,7 @@ services:
     env_file:
       - .env
     volumes:
+      - ./backend/app:/app/app
       - ./media:/app/media
     depends_on:
       db:
