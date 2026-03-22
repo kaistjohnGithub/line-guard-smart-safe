@@ -1227,10 +1227,10 @@ function CameraDetail({ cam, onBack, toast }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 265px', gap: 10, flex: 1, overflow: 'hidden', padding: 10, background: 'var(--bg)' }}>
-        {/* LEFT */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px,1.6fr) minmax(200px,1fr) 250px', gap: 10, flex: 1, overflow: 'hidden', padding: 10, background: 'var(--bg)' }}>
+        {/* COL 1: Video Monitor */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
-          <Panel>
+          <Panel style={{ flex: 1 }}>
             <PanelHead title={`Monitor — ${cam.name}`} icon="⬡"
               right={<>
                 {cam.videoSrc && <Badge color="green">🎬 Recorded Video</Badge>}
@@ -1278,73 +1278,97 @@ function CameraDetail({ cam, onBack, toast }) {
               {cam.videoSrc && <span style={{ fontSize: 10, color: 'var(--t3)', fontFamily: "'IBM Plex Mono',monospace", marginLeft: 'auto' }}>{cam.videoSrc.split('/').pop()}</span>}
             </div>
           </Panel>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, flex: 1, minHeight: 0 }}>
-            <Panel style={{ overflow: 'hidden' }}>
-              <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Badge color="blue">{safetyRules.length} rules</Badge>} />
-              <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
-                {(function() {
-                  var sevColor = { Low: 'var(--t3)', Medium: '#b45309', High: '#c2410c', Critical: 'var(--red)' };
-                  var sevBg    = { Low: 'rgba(100,116,139,.08)', Medium: 'rgba(217,119,6,.1)', High: 'rgba(194,65,12,.1)', Critical: 'var(--red-light)' };
-                  var cats = [
-                    { key: 'action',    label: 'Unsafe Actions',    dot: 'var(--red)',   border: 'var(--red)' },
-                    { key: 'condition', label: 'Unsafe Conditions',  dot: 'var(--amber)', border: 'var(--amber)' },
-                    { key: 'nearmiss',  label: 'Near-Miss',          dot: 'var(--red)',   border: 'var(--red)' },
-                  ];
-                  var hasAny = safetyRules.length > 0;
-                  if (!hasAny) {
-                    return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>ไม่มี Safety Rules — กำหนดได้ใน SOP Management</div>;
-                  }
-                  return cats.map(function(cat) {
-                    var rules = safetyRules.filter(function(r) { return r.category === cat.key; });
-                    if (!rules.length) return null;
-                    return (
-                      <div key={cat.key} style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--t2)', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.dot, display: 'inline-block', flexShrink: 0 }} />{cat.label}
-                          <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--t3)', fontSize: 9 }}>({rules.length})</span>
-                        </div>
-                        {rules.map(function(r, i) {
-                          var sc = sevColor[r.severity] || sevColor.Medium;
-                          var sb = sevBg[r.severity] || sevBg.Medium;
-                          return (
-                            <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', padding: '5px 8px', borderRadius: 5, marginBottom: 4, background: sb, borderLeft: '2px solid ' + sc }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: sc, flexShrink: 0, marginTop: 1 }}>[{r.severity || 'Medium'}]</span>
-                              <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{r.text}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </Panel>
-
-            <Panel style={{ overflow: 'hidden' }}>
-              <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
-              <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
-                {tl.map(row => (
-                  <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
-                    <SevBadge sev={row.s} />
-                    <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{row.e}</span>
-                  </div>
-                ))}
-                <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 8 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>✦ VLM Summary</div>
-                  <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Operator approached press area without confirming stop. Machine guard opened before motion ceased. Near-miss risk: <span style={{ color: 'var(--red)', fontWeight: 600 }}>CRITICAL</span>.</div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
-                  <Btn variant="ghost" size="sm">Full History</Btn>
-                </div>
-              </div>
-            </Panel>
-          </div>
         </div>
 
-        {/* RIGHT */}
+        {/* COL 2: Safety Rules / Event Timeline / Prompt & VLM — stacked column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
+          <Panel>
+            <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Badge color="blue">{safetyRules.length} rules</Badge>} />
+            <div style={{ padding: '10px 12px' }}>
+              {(function() {
+                var sevColor = { Low: 'var(--t3)', Medium: '#b45309', High: '#c2410c', Critical: 'var(--red)' };
+                var sevBg    = { Low: 'rgba(100,116,139,.08)', Medium: 'rgba(217,119,6,.1)', High: 'rgba(194,65,12,.1)', Critical: 'var(--red-light)' };
+                var cats = [
+                  { key: 'action',    label: 'Unsafe Actions',    dot: 'var(--red)' },
+                  { key: 'condition', label: 'Unsafe Conditions',  dot: 'var(--amber)' },
+                  { key: 'nearmiss',  label: 'Near-Miss',          dot: 'var(--red)' },
+                ];
+                if (!safetyRules.length) {
+                  return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 16 }}>ไม่มี Safety Rules — กำหนดได้ใน SOP Management</div>;
+                }
+                return cats.map(function(cat) {
+                  var rules = safetyRules.filter(function(r) { return r.category === cat.key; });
+                  if (!rules.length) return null;
+                  return (
+                    <div key={cat.key} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--t2)', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.dot, display: 'inline-block', flexShrink: 0 }} />{cat.label}
+                        <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--t3)', fontSize: 9 }}>({rules.length})</span>
+                      </div>
+                      {rules.map(function(r, i) {
+                        var sc = sevColor[r.severity] || sevColor.Medium;
+                        var sb = sevBg[r.severity] || sevBg.Medium;
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', padding: '5px 8px', borderRadius: 5, marginBottom: 4, background: sb, borderLeft: '2px solid ' + sc }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: sc, flexShrink: 0, marginTop: 1 }}>[{r.severity || 'Medium'}]</span>
+                            <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{r.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
+            <div style={{ padding: '10px 12px' }}>
+              {tl.map(row => (
+                <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
+                  <SevBadge sev={row.s} />
+                  <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{row.e}</span>
+                </div>
+              ))}
+              <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>✦ VLM Summary</div>
+                <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Operator approached press area without confirming stop. Machine guard opened before motion ceased. Near-miss risk: <span style={{ color: 'var(--red)', fontWeight: 600 }}>CRITICAL</span>.</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
+                <Btn variant="ghost" size="sm">Full History</Btn>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHead title="Prompt & VLM Control" icon="✦" right={<Badge color="blue">VLM Ready</Badge>} />
+            <div style={{ padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Prompt Template</div>
+              {PROMPTS.map((p, i) => (
+                <div key={p.id} onClick={() => { setSelPrompt(i); setPromptText(p.text); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 7px', borderRadius: 5, cursor: 'pointer', marginBottom: 2, background: selPrompt === i ? 'rgba(29,110,245,.08)' : 'transparent', border: selPrompt === i ? '1px solid rgba(29,110,245,.2)' : '1px solid transparent' }}>
+                  <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${selPrompt === i ? 'var(--blue)' : 'var(--border2)'}`, background: selPrompt === i ? 'var(--blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {selPrompt === i && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--t1)' }}>{p.name}</span>
+                </div>
+              ))}
+              <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
+                style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 5, padding: '8px 10px', fontSize: 10, color: 'var(--t1)', resize: 'vertical', minHeight: 72, outline: 'none', lineHeight: 1.6, fontFamily: "'IBM Plex Mono',monospace", marginTop: 8, marginBottom: 8 }} />
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <Btn variant="primary" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Run VLM'}</Btn>
+                <Btn variant="ghost" size="sm" onClick={() => toast('Saved!', '✓')}>Save</Btn>
+                <Btn variant="ghost" size="sm">Library</Btn>
+                <Btn variant="ghost" size="sm" onClick={() => toast('Compare mode…', '⊙', 'var(--amber)')}>Compare</Btn>
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        {/* COL 3: SOP */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
           <Panel>
             <PanelHead title={'SOP' + (sopData ? ' — ' + sopData.code : '')} icon="≡"
@@ -1386,7 +1410,6 @@ function CameraDetail({ cam, onBack, toast }) {
               )}
             </div>
           </Panel>
-
         </div>
       </div>
 
