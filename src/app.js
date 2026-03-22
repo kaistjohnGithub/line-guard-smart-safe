@@ -1281,31 +1281,43 @@ function CameraDetail({ cam, onBack, toast }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minHeight: 0 }}>
             <Panel style={{ overflow: 'hidden' }}>
-              <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Btn variant="teal" size="sm" onClick={() => setShowModal(true)}>✦ Generate</Btn>} />
+              <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Badge color="blue">{safetyRules.length} rules</Badge>} />
               <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
-                {[
-                  { label: 'Unsafe Actions', color: 'var(--red)', items: ['Hand entered danger zone during machine run', 'Operator skipped barcode scan step', 'No glove / no face shield detected'] },
-                  { label: 'Unsafe Conditions', color: 'var(--amber)', items: ['Oil spill detected near machine base', 'Guard door open while machine active'] },
-                  { label: 'Near-Miss', color: 'var(--red)', items: ['Machine running + hand in zone — CRITICAL'] },
-                ].map(cat => (
-                  <div key={cat.label} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--t2)', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.color, display: 'inline-block' }} />{cat.label}
-                    </div>
-                    {cat.items.map(it => (
-                      <div key={it} style={{ fontSize: 11, padding: '5px 8px', borderRadius: 4, marginBottom: 3, borderLeft: `2px solid ${cat.color}`, background: cat.color === 'var(--amber)' ? 'var(--amber-light)' : 'var(--red-light)', color: 'var(--t1)', lineHeight: 1.5 }}>{it}</div>
-                    ))}
-                  </div>
-                ))}
-                <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 6 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--blue)', marginBottom: 5 }}>✦ AI Suggestion</div>
-                  <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Add rule: "Confirm full machine stop before hand enters press area. Dual-confirmation required before cover open."</div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                    <Btn variant="teal" size="sm" onClick={() => toast('Rule saved!', '✓')}>Accept</Btn>
-                    <Btn variant="ghost" size="sm" onClick={() => setShowModal(true)}>Edit</Btn>
-                    <Btn variant="danger" size="sm" onClick={() => toast('Alert sent!', '⚠', 'var(--red)')}>Alert</Btn>
-                  </div>
-                </div>
+                {(function() {
+                  var sevColor = { Low: 'var(--t3)', Medium: '#b45309', High: '#c2410c', Critical: 'var(--red)' };
+                  var sevBg    = { Low: 'rgba(100,116,139,.08)', Medium: 'rgba(217,119,6,.1)', High: 'rgba(194,65,12,.1)', Critical: 'var(--red-light)' };
+                  var cats = [
+                    { key: 'action',    label: 'Unsafe Actions',    dot: 'var(--red)',   border: 'var(--red)' },
+                    { key: 'condition', label: 'Unsafe Conditions',  dot: 'var(--amber)', border: 'var(--amber)' },
+                    { key: 'nearmiss',  label: 'Near-Miss',          dot: 'var(--red)',   border: 'var(--red)' },
+                  ];
+                  var hasAny = safetyRules.length > 0;
+                  if (!hasAny) {
+                    return <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>ไม่มี Safety Rules — กำหนดได้ใน SOP Management</div>;
+                  }
+                  return cats.map(function(cat) {
+                    var rules = safetyRules.filter(function(r) { return r.category === cat.key; });
+                    if (!rules.length) return null;
+                    return (
+                      <div key={cat.key} style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--t2)', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.dot, display: 'inline-block', flexShrink: 0 }} />{cat.label}
+                          <span style={{ marginLeft: 4, fontWeight: 400, color: 'var(--t3)', fontSize: 9 }}>({rules.length})</span>
+                        </div>
+                        {rules.map(function(r, i) {
+                          var sc = sevColor[r.severity] || sevColor.Medium;
+                          var sb = sevBg[r.severity] || sevBg.Medium;
+                          return (
+                            <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', padding: '5px 8px', borderRadius: 5, marginBottom: 4, background: sb, borderLeft: '2px solid ' + sc }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: sc, flexShrink: 0, marginTop: 1 }}>[{r.severity || 'Medium'}]</span>
+                              <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{r.text}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </Panel>
 
@@ -1367,21 +1379,6 @@ function CameraDetail({ cam, onBack, toast }) {
                           {s.description && <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 1 }}>{s.description}</div>}
                         </div>
                         {s.title_th && s.title_th !== 'Low' && <span style={{ fontSize: 9, fontWeight: 700, color: riskColor, flexShrink: 0, marginTop: 2 }}>{s.title_th}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {sopData && safetyRules.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--t2)', marginBottom: 5 }}>⚠ Safety Rules</div>
-                  {safetyRules.map(function(r, i) {
-                    var sevColor = { Low: 'var(--t3)', Medium: '#b45309', High: '#c2410c', Critical: 'var(--red)' }[r.severity] || '#b45309';
-                    var sevBg = { Low: 'rgba(100,116,139,.1)', Medium: 'rgba(217,119,6,.1)', High: 'rgba(194,65,12,.1)', Critical: 'var(--red-light)' }[r.severity] || 'rgba(217,119,6,.1)';
-                    return (
-                      <div key={i} style={{ display: 'flex', gap: 7, alignItems: 'flex-start', padding: '5px 7px', borderRadius: 5, marginBottom: 4, background: sevBg, border: '1px solid ' + sevColor + '33' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: sevColor, flexShrink: 0, marginTop: 1 }}>[{r.severity || 'Medium'}]</span>
-                        <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{r.text}</span>
                       </div>
                     );
                   })}
