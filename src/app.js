@@ -1050,9 +1050,9 @@ function CameraFleetPage({ onOpenCamera, toast }) {
 
       <Modal
         show={showNewCamera}
-        onClose={() => { setShowNewCamera(false); setEditingCameraId(null); setVideoFile(null); setVideoPreviewUrl(''); setVideoFirstFrame(''); resetNewCameraForm(); }}
+        onClose={closeCameraModal}
         title={editingCameraId ? `Edit Camera · ${editingCameraId}` : "+ New Camera"}
-        footer={<><Btn variant="ghost" onClick={() => { setShowNewCamera(false); setEditingCameraId(null); setVideoFile(null); setVideoFirstFrame(''); resetNewCameraForm(); }}>Cancel</Btn><Btn variant="primary" onClick={submitCamera} disabled={creatingCamera || uploadingVideo}>{uploadingVideo ? 'Preparing Video…' : creatingCamera ? (editingCameraId ? 'Saving…' : 'Creating…') : (editingCameraId ? 'Save Changes' : 'Create Camera')}</Btn></>}
+        footer={<><Btn variant="ghost" onClick={closeCameraModal}>Cancel</Btn><Btn variant="primary" onClick={submitCamera} disabled={creatingCamera || uploadingVideo}>{uploadingVideo ? 'Preparing Video…' : creatingCamera ? (editingCameraId ? 'Saving…' : 'Creating…') : (editingCameraId ? 'Save Changes' : 'Create Camera')}</Btn></>}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <FormGroup label="Camera ID">
@@ -1498,7 +1498,29 @@ function SOPManagement({ toast }) {
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         setSops(prev => {
-          const existingCodes = new Set(prev.map(s => (s.id || '').toUpperCase()));
+          // Build lookup: code → db record
+          const dbByCode = {};
+          dbSops.forEach(s => { dbByCode[(s.code || '').toUpperCase()] = s; });
+
+          // Update existing SOPs (mock or already added) with DB ids + metadata
+          const updated = prev.map(s => {
+            const db = dbByCode[(s.id || '').toUpperCase()];
+            if (!db) return s;
+            const ver = db.version ? (db.version.startsWith('v') ? db.version : 'v' + db.version) : s.ver;
+            return {
+              ...s,
+              dbId: db.id,
+              dbProcessId: db.process_id,
+              name: db.title || s.name,
+              status: db.status || s.status,
+              ver,
+              by: db.responsible || s.by,
+              _stepsLoaded: false, // force reload steps from DB
+            };
+          });
+
+          // Append SOPs that exist in DB but not in prev list at all
+          const existingCodes = new Set(updated.map(s => (s.id || '').toUpperCase()));
           const newOnes = dbSops
             .filter(s => !existingCodes.has((s.code || '').toUpperCase()))
             .map(s => ({
@@ -1510,7 +1532,7 @@ function SOPManagement({ toast }) {
               versionNotes: '', steps: [{ id: 1, text: '', risk: 'Low', ppe: [] }],
               history: [], isDirty: false,
             }));
-          return newOnes.length ? [...prev, ...newOnes] : prev;
+          return newOnes.length ? [...updated, ...newOnes] : updated;
         });
       })
       .catch(() => {});
@@ -1545,7 +1567,7 @@ function SOPManagement({ toast }) {
         }));
       })
       .catch(() => {});
-  }, [selIdx]);
+  }, [selIdx, (sops[selIdx] || {}).dbId]);
 
   // ── Helpers ──
   const deleteSop = (idx) => {
