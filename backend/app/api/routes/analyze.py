@@ -27,6 +27,9 @@ async def analyze_video(
     file: UploadFile = File(...),
     camera_id: str = Form(...),
     interval_sec: float = Form(3.0),
+    process_id: int = Form(None),
+    sop_id: int = Form(None),
+    rule_set_id: int = Form(None),
     db: Session = Depends(get_db),
 ):
     """Upload a video and start Qwen analysis in the background."""
@@ -48,6 +51,9 @@ async def analyze_video(
         video_path=str(video_path),
         status="pending",
         interval_sec=interval_sec,
+        process_id=process_id,
+        sop_id=sop_id,
+        rule_set_id=rule_set_id,
     )
     db.add(job)
     db.commit()

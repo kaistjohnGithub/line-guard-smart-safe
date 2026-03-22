@@ -4,9 +4,17 @@
 CREATE TABLE IF NOT EXISTS cameras (
     id          VARCHAR(20) PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
+    process_id  INTEGER,
+    sop_id      INTEGER,
+    process     VARCHAR(150),
+    station     VARCHAR(150),
+    fps         INTEGER DEFAULT 15,
+    video_src   VARCHAR(500),
     zone        VARCHAR(100),
     location    VARCHAR(200),
     status      VARCHAR(20) DEFAULT 'online',   -- online / offline / warning
+    archived    BOOLEAN DEFAULT FALSE,
+    archived_at TIMESTAMPTZ,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -136,3 +144,13 @@ INSERT INTO cameras (id, name, zone, location, status) VALUES
   ('CAM-A07','Maintenance Area F','Zone F','Building 4, Floor 1','offline'),
   ('CAM-A08','Emergency Exit G','Zone G','Building 1, Exit','online')
 ON CONFLICT (id) DO NOTHING;
+
+-- Backfill direct camera fields for fresh installs and legacy rows
+UPDATE cameras SET process = 'Assembly / Press', station = 'Station 01', fps = 15, video_src = './src/videos/sample_forklift_safety.mp4' WHERE id = 'CAM-A01';
+UPDATE cameras SET process = 'Assembly / Press', station = 'Station 02', fps = 14, video_src = NULL WHERE id = 'CAM-A02';
+UPDATE cameras SET process = 'Assembly / Sampling', station = 'Station 03', fps = 3, video_src = './src/videos/synthetic_factory.mp4' WHERE id = 'CAM-A03';
+UPDATE cameras SET process = 'Assembly / Packing', station = 'Station 04', fps = 0, video_src = NULL, status = 'offline' WHERE id = 'CAM-A04';
+UPDATE cameras SET process = 'Assembly B / Welding', station = 'Station 01', fps = 15, video_src = NULL WHERE id = 'CAM-A05';
+UPDATE cameras SET process = 'Assembly B / QC', station = 'Station 02', fps = 15, video_src = NULL WHERE id = 'CAM-A06';
+UPDATE cameras SET process = 'Assembly C / Robot', station = 'Station 01', fps = 15, video_src = NULL WHERE id = 'CAM-A07';
+UPDATE cameras SET process = 'Assembly C / Conveyor', station = 'Station 02', fps = 12, video_src = NULL WHERE id = 'CAM-A08';

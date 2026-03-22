@@ -25,3 +25,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Project media uploads (generated at runtime)
+media/
+
+# Qwen model weights — download separately, ~6GB
+model/

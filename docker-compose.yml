@@ -7,6 +7,10 @@ services:
       dockerfile: Dockerfile.frontend
     ports:
       - "${FRONTEND_PORT:-5173}:80"
+    volumes:
+      - ./src:/usr/share/nginx/html/src
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./media:/usr/share/nginx/html/media
     depends_on:
       - backend
     restart: unless-stopped
@@ -21,7 +25,7 @@ services:
     env_file:
       - .env
     volumes:
-      - media_data:/app/media
+      - ./media:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -57,7 +61,7 @@ services:
       - QWEN_MODEL=${QWEN_MODEL:-Qwen/Qwen2.5-VL-3B-Instruct}
       - HF_HUB_CACHE=/app/model/hub
     volumes:
-      - media_data:/app/media
+      - ./media:/app/media
       - model_data:/app/model
     depends_on:
       db:
@@ -89,5 +93,4 @@ services:
 
 volumes:
   postgres_data:       # PostgreSQL data
-  media_data:          # Images & videos uploaded via API
   model_data:          # Qwen model weights cache
