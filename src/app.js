@@ -1173,6 +1173,7 @@ function CameraDetail({ cam, onBack, toast }) {
   const [promptText, setPromptText] = useState(PROMPTS[0].text);
   const [vlmRunning, setVlmRunning] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showPromptModal, setShowPromptModal] = useState(false);
   const [sopData, setSopData] = useState(null);
   const [videoError, setVideoError] = useState('');
 
@@ -1223,6 +1224,7 @@ function CameraDetail({ cam, onBack, toast }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <StatusPill status={cam.status} />
           <Badge color="blue">AI Active</Badge>
+          <Btn variant="ghost" size="sm" onClick={() => setShowPromptModal(true)}>✦ Prompt & VLM</Btn>
           <Btn variant="danger" size="sm" onClick={() => toast('Alert sent!', '⚠', 'var(--red)')}>⚠ Send Alert</Btn>
         </div>
       </div>
@@ -1319,36 +1321,13 @@ function CameraDetail({ cam, onBack, toast }) {
             </div>
           </Panel>
 
-          <Panel>
-            <PanelHead title="Prompt & VLM Control" icon="✦" right={<Badge color="blue">VLM Ready</Badge>} />
-            <div style={{ padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Prompt Template</div>
-              {PROMPTS.map((p, i) => (
-                <div key={p.id} onClick={() => { setSelPrompt(i); setPromptText(p.text); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 7px', borderRadius: 5, cursor: 'pointer', marginBottom: 2, background: selPrompt === i ? 'rgba(29,110,245,.08)' : 'transparent', border: selPrompt === i ? '1px solid rgba(29,110,245,.2)' : '1px solid transparent' }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${selPrompt === i ? 'var(--blue)' : 'var(--border2)'}`, background: selPrompt === i ? 'var(--blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {selPrompt === i && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />}
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--t1)' }}>{p.name}</span>
-                </div>
-              ))}
-              <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
-                style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 5, padding: '8px 10px', fontSize: 10, color: 'var(--t1)', resize: 'vertical', minHeight: 72, outline: 'none', lineHeight: 1.6, fontFamily: "'IBM Plex Mono',monospace", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <Btn variant="primary" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Run VLM'}</Btn>
-                <Btn variant="ghost" size="sm" onClick={() => toast('Saved!', '✓')}>Save</Btn>
-                <Btn variant="ghost" size="sm">Library</Btn>
-                <Btn variant="ghost" size="sm" onClick={() => toast('Compare mode…', '⊙', 'var(--amber)')}>Compare</Btn>
-              </div>
-            </div>
-          </Panel>
         </div>
 
-        {/* COL 2: Event Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', minWidth: 0 }}>
-          <Panel>
+        {/* COL 2: Event Timeline — full height */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+          <Panel style={{ flex: 1, overflow: 'hidden' }}>
             <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
-            <div style={{ padding: '10px 12px' }}>
+            <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
               {tl.map(row => (
                 <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
@@ -1413,19 +1392,33 @@ function CameraDetail({ cam, onBack, toast }) {
         </div>
       </div>
 
-      <Modal show={showModal} onClose={() => setShowModal(false)} title="✦ AI Generate Safety Rule"
-        footer={<><Btn variant="ghost" onClick={() => setShowModal(false)}>Cancel</Btn><Btn variant="ghost" onClick={() => { toast('Saved as draft!', '✓'); setShowModal(false); }}>Save Draft</Btn><Btn variant="primary" onClick={() => { toast('Rules published!', '⬆'); setShowModal(false); }}>Publish</Btn></>}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          <FormGroup label="Source Camera"><select style={{ background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 6, padding: '7px 10px', fontSize: 12, outline: 'none' }}><option>CAM-A01 — Press Machine 1</option></select></FormGroup>
-          <FormGroup label="Time Range"><FormInput value="14:20:00 — 14:25:00" /></FormGroup>
-        </div>
-        <FormGroup label="Context / Notes"><textarea defaultValue="Operator approaching press area during active cycle. Focus on physical interaction rules." style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 6, padding: '8px 10px', fontSize: 12, minHeight: 80, outline: 'none', lineHeight: 1.6, resize: 'vertical' }} /></FormGroup>
-        <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 8, padding: '12px 14px', marginTop: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--blue)', marginBottom: 8 }}>✦ AI Generated Output</div>
-          <div style={{ fontSize: 12, color: 'var(--t1)', lineHeight: 1.8 }}>
-            <b style={{ color: 'var(--red)' }}>Unsafe Actions:</b><br />• Operator must not enter press zone while machine cycle is active<br />• Machine guard must be physically confirmed before approaching<br /><br />
-            <b style={{ color: 'var(--amber)' }}>Preventive Rules:</b><br />• Add dual-lock: operator badge + machine stop confirmation<br />• Install proximity sensor alarm within 1.5m of press zone
+      <Modal show={showPromptModal} onClose={() => setShowPromptModal(false)} title="✦ Prompt & VLM Control"
+        footer={<>
+          <Btn variant="ghost" onClick={() => setShowPromptModal(false)}>Close</Btn>
+          <Btn variant="ghost" onClick={() => { toast('Saved!', '✓'); setShowPromptModal(false); }}>Save</Btn>
+          <Btn variant="ghost" onClick={() => toast('Compare mode…', '⊙', 'var(--amber)')}>Compare</Btn>
+          <Btn variant="primary" onClick={() => { runVLM(); setShowPromptModal(false); }} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Run VLM'}</Btn>
+        </>}>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Prompt Template</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {PROMPTS.map((p, i) => (
+              <div key={p.id} onClick={() => { setSelPrompt(i); setPromptText(p.text); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px', borderRadius: 6, cursor: 'pointer', background: selPrompt === i ? 'rgba(29,110,245,.08)' : 'transparent', border: selPrompt === i ? '1px solid rgba(29,110,245,.2)' : '1px solid transparent' }}>
+                <div style={{ width: 13, height: 13, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${selPrompt === i ? 'var(--blue)' : 'var(--border2)'}`, background: selPrompt === i ? 'var(--blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {selPrompt === i && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff' }} />}
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--t1)' }}>{p.name}</span>
+              </div>
+            ))}
           </div>
+        </div>
+        <FormGroup label="Prompt Text">
+          <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
+            style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: 'var(--t1)', resize: 'vertical', minHeight: 120, outline: 'none', lineHeight: 1.6, fontFamily: "'IBM Plex Mono',monospace" }} />
+        </FormGroup>
+        <div style={{ background: 'rgba(29,110,245,.05)', border: '1px solid rgba(29,110,245,.15)', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--t3)' }}>Camera: <b style={{ color: 'var(--t1)' }}>{cam.id}</b> &nbsp;·&nbsp; {cam.videoSrc ? <span style={{ color: 'var(--green)' }}>🎬 Video attached</span> : <span style={{ color: 'var(--amber)' }}>No video</span>}</div>
         </div>
       </Modal>
     </div>
