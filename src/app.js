@@ -1279,7 +1279,7 @@ function CameraDetail({ cam, onBack, toast }) {
             </div>
           </Panel>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1, minHeight: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, flex: 1, minHeight: 0 }}>
             <Panel style={{ overflow: 'hidden' }}>
               <PanelHead title="Safety Rules / AI Analysis" icon="⚑" right={<Badge color="blue">{safetyRules.length} rules</Badge>} />
               <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
@@ -1387,29 +1387,6 @@ function CameraDetail({ cam, onBack, toast }) {
             </div>
           </Panel>
 
-          <Panel>
-            <PanelHead title="Prompt & VLM Control" icon="✦" right={<Badge color="blue">VLM Ready</Badge>} />
-            <div style={{ padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Prompt Template</div>
-              {PROMPTS.map((p, i) => (
-                <div key={p.id} onClick={() => { setSelPrompt(i); setPromptText(p.text); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 7px', borderRadius: 5, cursor: 'pointer', marginBottom: 2, background: selPrompt === i ? 'rgba(29,110,245,.08)' : 'transparent', border: selPrompt === i ? '1px solid rgba(29,110,245,.2)' : '1px solid transparent' }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${selPrompt === i ? 'var(--blue)' : 'var(--border2)'}`, background: selPrompt === i ? 'var(--blue)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {selPrompt === i && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />}
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--t1)' }}>{p.name}</span>
-                </div>
-              ))}
-              <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
-                style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 5, padding: '8px 10px', fontSize: 10, color: 'var(--t1)', resize: 'vertical', minHeight: 72, outline: 'none', lineHeight: 1.6, fontFamily: "'IBM Plex Mono',monospace", marginTop: 8, marginBottom: 8 }} />
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <Btn variant="primary" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Run VLM'}</Btn>
-                <Btn variant="ghost" size="sm" onClick={() => toast('Saved!', '✓')}>Save</Btn>
-                <Btn variant="ghost" size="sm">Library</Btn>
-                <Btn variant="ghost" size="sm" onClick={() => toast('Compare mode…', '⊙', 'var(--amber)')}>Compare</Btn>
-              </div>
-            </div>
-          </Panel>
         </div>
       </div>
 
