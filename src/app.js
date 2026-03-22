@@ -1399,6 +1399,24 @@ function CameraDetail({ cam, onBack, toast }) {
           <Btn variant="ghost" onClick={() => toast('Compare mode…', '⊙', 'var(--amber)')}>Compare</Btn>
           <Btn variant="primary" onClick={() => { runVLM(); setShowPromptModal(false); }} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Run VLM'}</Btn>
         </>}>
+        {/* Camera context banner */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(29,110,245,.12)', border: '1px solid rgba(29,110,245,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>⬡</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>{cam.id}</span>
+              {cam.station && <span style={{ fontSize: 11, color: 'var(--t2)' }}>— {cam.station}</span>}
+              {cam.process && <span style={{ fontSize: 10, color: 'var(--t3)' }}>· {cam.process}</span>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+              {sopData && <span style={{ fontSize: 10, color: 'var(--t3)' }}>SOP: <b style={{ color: 'var(--t2)' }}>{sopData.code} — {sopData.title}</b></span>}
+              {cam.videoSrc
+                ? <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600 }}>🎬 Video attached</span>
+                : <span style={{ fontSize: 10, color: 'var(--amber)' }}>⚠ No video</span>}
+            </div>
+          </div>
+          <StatusPill status={cam.status} />
+        </div>
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: 'var(--t3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Select Prompt Template</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1417,9 +1435,6 @@ function CameraDetail({ cam, onBack, toast }) {
           <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
             style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border2)', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: 'var(--t1)', resize: 'vertical', minHeight: 120, outline: 'none', lineHeight: 1.6, fontFamily: "'IBM Plex Mono',monospace" }} />
         </FormGroup>
-        <div style={{ background: 'rgba(29,110,245,.05)', border: '1px solid rgba(29,110,245,.15)', borderRadius: 6, padding: '8px 12px', marginTop: 4 }}>
-          <div style={{ fontSize: 10, color: 'var(--t3)' }}>Camera: <b style={{ color: 'var(--t1)' }}>{cam.id}</b> &nbsp;·&nbsp; {cam.videoSrc ? <span style={{ color: 'var(--green)' }}>🎬 Video attached</span> : <span style={{ color: 'var(--amber)' }}>No video</span>}</div>
-        </div>
       </Modal>
     </div>
   );
