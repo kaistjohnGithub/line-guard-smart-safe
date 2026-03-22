@@ -1,12 +1,15 @@
 """
 /api/cameras - camera fleet endpoints for the monitoring UI.
 """
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models import Alert, AnalysisJob, Camera, Event, FrameResult, MediaFile, Process, Sop
 
@@ -254,6 +257,26 @@ def update_camera_video(camera_id: str, body: dict, db: Session = Depends(get_db
     return _format_camera(cam, db)
 
 
+def _delete_media_files(video_src: str | None) -> None:
+    """ลบไฟล์วิดีโอและ thumbnail ออกจาก disk (ถ้ามี)"""
+    if not video_src:
+        return
+    media_root = Path(settings.media_root)
+    # video: /media/videos/xxx.mp4  → <media_root>/videos/xxx.mp4
+    if video_src.startswith("/media/"):
+        rel = video_src[len("/media/"):]
+        video_path = media_root / rel
+        if video_path.is_file():
+            video_path.unlink(missing_ok=True)
+    # thumbnail derived from video src
+    thumb_url = _thumbnail_url_from_video(video_src)
+    if thumb_url and thumb_url.startswith("/media/"):
+        rel = thumb_url[len("/media/"):]
+        thumb_path = media_root / rel
+        if thumb_path.is_file():
+            thumb_path.unlink(missing_ok=True)
+
+
 @router.delete("/{camera_id}", status_code=204)
 def delete_camera(camera_id: str, db: Session = Depends(get_db)):
     cam = db.get(Camera, camera_id.upper())
@@ -263,8 +286,10 @@ def delete_camera(camera_id: str, db: Session = Depends(get_db)):
     if _camera_has_related_records(db, cam.id):
         raise HTTPException(status_code=409, detail="Cannot delete camera because it has related alerts, events, or analysis history. Archive it instead.")
 
+    video_src = cam.video_src
     db.delete(cam)
     db.commit()
+    _delete_media_files(video_src)
     return Response(status_code=204)
 
 
