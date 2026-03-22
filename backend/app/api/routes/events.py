@@ -1,23 +1,52 @@
 """
 /api/events — Events + Alerts query endpoints.
 """
-from fastapi import APIRouter, Depends, Query
+from datetime import timezone as _tz
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Event, Alert, FrameResult
+from app.models import Camera, Event, Alert, FrameResult
 
 router = APIRouter(prefix="/api/events", tags=["events"])
+
+
+class EventIn(BaseModel):
+    timestamp_mmss: str            # "01:13"
+    severity: str = "medium"      # low / medium / high / critical
+    description: str = ""
+    event_type: str = "observation"
+    event_type_label: Optional[str] = None
+
+
+class BulkEventBody(BaseModel):
+    camera_id: str
+    events: List[EventIn]
+    replace: bool = False          # ถ้า True ลบ events เดิมของกล้องนี้ก่อน
+
+
+def _mmss_to_sec(mmss: str) -> float:
+    """'01:13' → 73.0, '2:55' → 175.0"""
+    parts = mmss.strip().split(":")
+    try:
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + float(parts[1])
+        return float(parts[0])
+    except ValueError:
+        return 0.0
 
 
 @router.get("")
 def list_events(
     camera_id: str = None,
     severity: str = None,
-    limit: int = 50,
+    limit: int = 500,
     db: Session = Depends(get_db),
 ):
-    q = db.query(Event).order_by(Event.occurred_at.desc())
+    q = db.query(Event).order_by(Event.video_offset_seconds.asc().nullslast(), Event.occurred_at.asc())
     if camera_id:
         q = q.filter(Event.camera_id == camera_id)
     if severity:
@@ -29,14 +58,49 @@ def list_events(
             "id": e.id,
             "camera_id": e.camera_id,
             "event_type": e.event_type,
+            "event_type_label": e.event_type_label,
             "severity": e.severity,
             "description": e.description,
             "confidence": float(e.confidence or 0),
-            "metadata": e.metadata,
             "occurred_at": e.occurred_at,
+            "video_offset_seconds": float(e.video_offset_seconds) if e.video_offset_seconds is not None else None,
         }
         for e in events
     ]
+
+
+@router.post("/bulk", status_code=201)
+def bulk_create_events(body: BulkEventBody, db: Session = Depends(get_db)):
+    cam = db.get(Camera, body.camera_id.upper())
+    if not cam:
+        raise HTTPException(status_code=404, detail=f"Camera '{body.camera_id}' not found")
+
+    if body.replace:
+        db.query(Event).filter(
+            Event.camera_id == cam.id,
+            Event.video_offset_seconds.isnot(None),
+        ).delete(synchronize_session=False)
+
+    created = []
+    for ev in body.events:
+        offset = _mmss_to_sec(ev.timestamp_mmss)
+        sev = ev.severity.lower()
+        row = Event(
+            camera_id=cam.id,
+            event_type=ev.event_type,
+            event_type_label=ev.event_type_label,
+            severity=sev,
+            description=ev.description,
+            video_offset_seconds=offset,
+        )
+        db.add(row)
+        created.append(row)
+
+    db.commit()
+    for r in created:
+        db.refresh(r)
+
+    return {"created": len(created), "camera_id": cam.id}
 
 
 @router.get("/alerts")

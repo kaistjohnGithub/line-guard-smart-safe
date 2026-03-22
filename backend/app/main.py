@@ -29,6 +29,8 @@ async def lifespan(_app: FastAPI):
         conn.execute(text("ALTER TABLE prompts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ"))
         conn.execute(text("ALTER TABLE prompts ADD COLUMN IF NOT EXISTS last_test_output TEXT"))
         conn.execute(text("ALTER TABLE prompts ADD COLUMN IF NOT EXISTS last_test_json JSONB"))
+        conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS video_offset_seconds FLOAT"))
+        conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type_label TEXT"))
         conn.commit()
     yield
 

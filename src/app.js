@@ -1201,15 +1201,43 @@ function CameraDetail({ cam, onBack, toast }) {
 
   React.useEffect(function() {
     setFrameEvents([]);
-    fetch(API + '/api/events/frames?camera_id=' + cam.id + '&limit=500')
+    // ดึง events ที่มี video_offset_seconds (บันทึกจาก AI analysis หรือ bulk import)
+    // รวมกับ frame_results จาก AI Video Analyze
+    var eventsP = fetch(API + '/api/events?camera_id=' + cam.id + '&limit=500')
       .then(function(r) { return r.ok ? r.json() : []; })
-      .then(function(data) {
-        var sorted = (data || []).slice().sort(function(a, b) {
-          return (a.timestamp_sec || 0) - (b.timestamp_sec || 0);
-        });
-        setFrameEvents(sorted);
-      })
-      .catch(function() {});
+      .catch(function() { return []; });
+    var framesP = fetch(API + '/api/events/frames?camera_id=' + cam.id + '&limit=500')
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .catch(function() { return []; });
+
+    Promise.all([eventsP, framesP]).then(function(results) {
+      var evts = (results[0] || []).filter(function(e) { return e.video_offset_seconds != null; });
+      var frames = (results[1] || []);
+      // normalize ทั้งสอง source ให้มี field เดียวกัน
+      var normalized = evts.map(function(e) {
+        return {
+          id: 'ev-' + e.id,
+          timestamp_sec: e.video_offset_seconds,
+          safety_status: e.severity,
+          description: e.description,
+          event_type_label: e.event_type_label || e.event_type,
+          source: 'event',
+        };
+      }).concat(frames.map(function(f) {
+        return {
+          id: 'fr-' + f.id,
+          timestamp_sec: f.timestamp_sec,
+          safety_status: f.safety_status,
+          description: f.description,
+          event_type_label: null,
+          source: 'frame',
+        };
+      }));
+      var sorted = normalized.sort(function(a, b) {
+        return (a.timestamp_sec || 0) - (b.timestamp_sec || 0);
+      });
+      setFrameEvents(sorted);
+    });
   }, [cam.id]);
 
   var sopSteps = sopData ? (sopData.steps || []) : [];
@@ -1382,9 +1410,12 @@ function CameraDetail({ cam, onBack, toast }) {
                       {fmtSec(fr.timestamp_sec)}
                     </span>
                     <SevBadge sev={sev} />
-                    <span style={{ fontSize: 11, color: isActive ? 'var(--t1)' : 'var(--t2)', lineHeight: 1.45, flex: 1 }}>
-                      {(fr.description || fr.safety_status || '—').slice(0, 80)}
-                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {fr.event_type_label && <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: isActive ? 'var(--blue)' : 'var(--t3)', marginBottom: 2 }}>{fr.event_type_label}</div>}
+                      <span style={{ fontSize: 11, color: isActive ? 'var(--t1)' : 'var(--t2)', lineHeight: 1.45 }}>
+                        {(fr.description || fr.safety_status || '—').slice(0, 90)}
+                      </span>
+                    </div>
                     {isActive && <span style={{ fontSize: 9, color: 'var(--blue)', fontWeight: 700, flexShrink: 0 }}>▶</span>}
                   </div>
                 );

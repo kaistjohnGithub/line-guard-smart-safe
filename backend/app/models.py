@@ -26,14 +26,16 @@ class Camera(Base):
 
 class Event(Base):
     __tablename__ = "events"
-    id          = Column(Integer, primary_key=True, autoincrement=True)
-    camera_id   = Column(String(20), ForeignKey("cameras.id"))
-    event_type  = Column(String(50), nullable=False)
-    severity    = Column(String(20), default="medium")
-    description = Column(Text)
-    confidence  = Column(Numeric(5, 2))
-    extra_data  = Column("metadata", JSONB)
-    occurred_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+    camera_id            = Column(String(20), ForeignKey("cameras.id"))
+    event_type           = Column(String(50), nullable=False)
+    event_type_label     = Column(Text)
+    severity             = Column(String(20), default="medium")
+    description          = Column(Text)
+    confidence           = Column(Numeric(5, 2))
+    extra_data           = Column("metadata", JSONB)
+    occurred_at          = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    video_offset_seconds = Column(Numeric(8, 2))
 
 
 class Alert(Base):
