@@ -1176,6 +1176,9 @@ function CameraDetail({ cam, onBack, toast }) {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [sopData, setSopData] = useState(null);
   const [videoError, setVideoError] = useState('');
+  const [videoTime, setVideoTime] = useState(0);
+  const [frameEvents, setFrameEvents] = useState([]);
+  const videoRef = React.useRef(null);
 
   var toAbsMedia = function(path) {
     if (!path) return '';
@@ -1193,7 +1196,21 @@ function CameraDetail({ cam, onBack, toast }) {
 
   React.useEffect(function() {
     setVideoError('');
+    setVideoTime(0);
   }, [cam.videoSrc]);
+
+  React.useEffect(function() {
+    setFrameEvents([]);
+    fetch(API + '/api/events/frames?camera_id=' + cam.id + '&limit=500')
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(data) {
+        var sorted = (data || []).slice().sort(function(a, b) {
+          return (a.timestamp_sec || 0) - (b.timestamp_sec || 0);
+        });
+        setFrameEvents(sorted);
+      })
+      .catch(function() {});
+  }, [cam.id]);
 
   var sopSteps = sopData ? (sopData.steps || []) : [];
   var safetyRules = [];
@@ -1206,12 +1223,22 @@ function CameraDetail({ cam, onBack, toast }) {
     setTimeout(() => { setVlmRunning(false); toast('VLM วิเคราะห์เสร็จแล้ว!', '✓'); }, 2200);
   };
 
-  const tl = [
-    { t: '14:22:01', s: 'medium',   e: 'Operator stood in restricted zone' },
-    { t: '14:22:11', s: 'high',     e: 'Hand detected near moving part' },
-    { t: '14:22:19', s: 'critical', e: 'Machine running + hand in zone' },
-    { t: '14:22:28', s: 'low',      e: 'Floor clutter detected' },
-  ];
+  var fmtSec = function(sec) {
+    var s = Math.floor(sec || 0);
+    var m = Math.floor(s / 60);
+    return m + ':' + String(s % 60).padStart(2, '0');
+  };
+
+  var seekTo = function(sec) {
+    if (videoRef.current) { videoRef.current.currentTime = sec; videoRef.current.play(); }
+  };
+
+  // index ของ frame ที่ใกล้ currentTime มากที่สุด (ไม่เกิน)
+  var activeFrameIdx = -1;
+  for (var fi = 0; fi < frameEvents.length; fi++) {
+    if ((frameEvents[fi].timestamp_sec || 0) <= videoTime) activeFrameIdx = fi;
+    else break;
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1242,11 +1269,13 @@ function CameraDetail({ cam, onBack, toast }) {
             {cam.videoSrc ? (
               <div style={{ background: '#0a1020', position: 'relative' }}>
                 <video
+                  ref={videoRef}
                   key={toAbsMedia(cam.videoSrc)}
                   src={toAbsMedia(cam.videoSrc)}
                   controls
                   onLoadedData={() => setVideoError('')}
                   onError={() => setVideoError('This video file loaded from storage but could not be decoded by the browser. Re-upload it after the backend ffmpeg update so it can be converted to H.264.')}
+                  onTimeUpdate={function() { if (videoRef.current) setVideoTime(videoRef.current.currentTime); }}
                   style={{ width: '100%', maxHeight: 320, objectFit: 'contain', display: 'block', background: '#0a1020' }}
                 />
                 {videoError ? (
@@ -1326,19 +1355,51 @@ function CameraDetail({ cam, onBack, toast }) {
         {/* COL 2: Event Timeline — full height */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden', minWidth: 0 }}>
           <Panel style={{ flex: 1, overflow: 'hidden' }}>
-            <PanelHead title="Event Timeline" icon="⊶" right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>4 events</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
+            <PanelHead title="Event Timeline" icon="⊶"
+              right={<><span style={{ fontSize: 10, color: 'var(--t3)' }}>{frameEvents.length > 0 ? frameEvents.length + ' events' : 'no events'}</span><Btn variant="ghost" size="sm" onClick={() => toast('Exported!', '⬇')}>Export</Btn></>} />
             <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
-              {tl.map(row => (
-                <div key={row.t} style={{ display: 'flex', alignItems: 'flex-start', gap: 7, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 10, color: 'var(--t3)', minWidth: 58, fontFamily: "'IBM Plex Mono',monospace" }}>{row.t}</span>
-                  <SevBadge sev={row.s} />
-                  <span style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.5 }}>{row.e}</span>
+              {frameEvents.length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--t3)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>ยังไม่มี event — รัน AI Video Analyze เพื่อสร้าง events</div>
+              )}
+              {frameEvents.map(function(fr, i) {
+                var isActive = i === activeFrameIdx;
+                var sevKey = (fr.safety_status || 'low').toLowerCase();
+                var sevMap = { safe: 'low', warning: 'medium', unsafe: 'high', critical: 'critical', low: 'low', medium: 'medium', high: 'high' };
+                var sev = sevMap[sevKey] || 'low';
+                return (
+                  <div key={fr.id || i}
+                    onClick={function() { seekTo(fr.timestamp_sec || 0); }}
+                    title="คลิกเพื่อ seek วิดีโอไปจุดนี้"
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 7,
+                      padding: '6px 8px', borderRadius: 6, marginBottom: 2,
+                      cursor: cam.videoSrc ? 'pointer' : 'default',
+                      background: isActive ? 'rgba(29,110,245,.1)' : 'transparent',
+                      border: isActive ? '1px solid rgba(29,110,245,.3)' : '1px solid transparent',
+                      transition: 'background .15s',
+                    }}>
+                    <span style={{ fontSize: 10, color: isActive ? 'var(--blue)' : 'var(--t3)', minWidth: 40, fontFamily: "'IBM Plex Mono',monospace", fontWeight: isActive ? 700 : 400, flexShrink: 0 }}>
+                      {fmtSec(fr.timestamp_sec)}
+                    </span>
+                    <SevBadge sev={sev} />
+                    <span style={{ fontSize: 11, color: isActive ? 'var(--t1)' : 'var(--t2)', lineHeight: 1.45, flex: 1 }}>
+                      {(fr.description || fr.safety_status || '—').slice(0, 80)}
+                    </span>
+                    {isActive && <span style={{ fontSize: 9, color: 'var(--blue)', fontWeight: 700, flexShrink: 0 }}>▶</span>}
+                  </div>
+                );
+              })}
+              {/* active frame description box */}
+              {activeFrameIdx >= 0 && frameEvents[activeFrameIdx] && (
+                <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 10 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>
+                    ✦ Frame {fmtSec(frameEvents[activeFrameIdx].timestamp_sec)}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>
+                    {frameEvents[activeFrameIdx].description || '—'}
+                  </div>
                 </div>
-              ))}
-              <div style={{ background: 'rgba(29,110,245,.06)', border: '1px solid rgba(29,110,245,.18)', borderRadius: 6, padding: '9px 11px', marginTop: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 5 }}>✦ VLM Summary</div>
-                <div style={{ fontSize: 11, color: 'var(--t1)', lineHeight: 1.7 }}>Operator approached press area without confirming stop. Machine guard opened before motion ceased. Near-miss risk: <span style={{ color: 'var(--red)', fontWeight: 600 }}>CRITICAL</span>.</div>
-              </div>
+              )}
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <Btn variant="teal" size="sm" onClick={runVLM} disabled={vlmRunning}>{vlmRunning ? '⟳ Running…' : '▶ Re-run VLM'}</Btn>
                 <Btn variant="ghost" size="sm">Full History</Btn>
