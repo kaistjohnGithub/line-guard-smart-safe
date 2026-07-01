@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node (just in case)
+node_modules/
+.npm/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Project media uploads (generated at runtime)
+media/
+
+# Qwen model weights — download separately, ~6GB
+model/
